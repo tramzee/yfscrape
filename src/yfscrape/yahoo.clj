@@ -1,8 +1,8 @@
-(ns yfscrape.dax
+(ns yfscrape.yahoo
   (:require [net.cgrand.enlive-html :as html]))
 
+
 (def ^:dynamic *base-url* "http://finance.yahoo.com")
-(def dax-idx "GDAXI")
 
 (defn fetch-url [url]
   (html/html-resource (java.net.URL. url)))
@@ -16,16 +16,14 @@
 
 (defn component-syms [idx] (html/select (component-page idx) [:td.yfnc_tabledata1 :a html/text-node]))
 
-(defn dax-syms [] (component-syms dax-idx))
-
-(defn str->mc [s] (read-string (clojure.string/replace s #"[^0-9\\.]" "")))
+(defn str->mc [s] (and s (read-string (clojure.string/replace s #"[^0-9\\.]" ""))))
 
 (defn sym-path [sym] (format "/q?s=%s" (clojure.string/upper-case sym)))
 
 (defn sym-page [sym]
   (page (sym-path sym)))
 
-(defn market-cap [p]
+(defn market-cap-page [p]
   (-> (html/select p [[:span (html/attr-starts :id "yfs_j10_")]])
       first
       :content
@@ -43,21 +41,13 @@
 (defn page-info [p]
   {:title (page-title p)
    :prev-close (prev-close p)
-   :market-cap (market-cap p)})
+   :market-cap (market-cap-page p)})
 
 (defn sym-info [sym]
   (assoc (page-info (sym-page sym)) :sym (clojure.string/upper-case sym)))
 
-(defn components []
-  (map sym-info (component-syms dax-idx)))
+(defn market-cap [si]
+  (or (:market-cap si) 0))
 
-
-;; (defn hn-headlines []
-;;   (map html/text (html/select (fetch-url *base-url*) [:td.title :a])))
-
-;; (defn hn-points []
-;;   (map html/text (html/select (fetch-url *base-url*) [:td.subtext html/first-child])))
-
-;; (defn print-headlines-and-points []
-;;   (doseq [line (map #(str %1 " (" %2 ")") (hn-headlines) (hn-points))]
-;;     (println line)))
+(defn component-info [idx]
+  (map sym-info (component-syms idx)))
